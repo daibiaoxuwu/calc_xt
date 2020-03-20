@@ -5,6 +5,8 @@
 #include <vector>
 #include <cassert>
 #include <set>
+#include <queue>
+#include <cmath>
 
 FILE* fin, *fout, *flog;
 inline void maxer(int &x, int y) { if (y > x) x = y; }
@@ -49,42 +51,49 @@ int main() {
     int round = 18 - rest_num / 4;//start with 69 -> 1.end with 0 - 18.
     std::array<int,34> hand_cnt{}; for (int i = 0; i < 34; ++ i) fscanf(fin, "%d", &hand_cnt[i]);
     int known_remain_cnt[34]; for (int i = 0; i < 34; ++ i) fscanf(fin,"%d", &known_remain_cnt[i]);
+    int remain_sum = 0; for (int i : known_remain_cnt) remain_sum += i;
     int dora[34]; for (int i = 0; i < 34; ++ i) fscanf(fin,"%d", &dora[i]);
     fclose(fin);
 
     int init_xt = calc_xt(hand_cnt);
     printf("%d\n",init_xt);
 
-    std::set<std::array<int,34>> nodes[7][2];
+    std::set<std::array<int,34>> nodes[7]; //TODO: do not need this set
+    std::map<std::array<int,34>, int> cntmap;
+    std::vector<std::vector<std::pair<int,int>>> roadmap;
+    int cnt = 0;
     for (int i = 0; i < 34; ++i) {
         if(hand_cnt[i]>0){
             hand_cnt[i]--;
-            nodes[calc_xt(hand_cnt)][0].insert(hand_cnt);
+            nodes[calc_xt(hand_cnt)].insert(hand_cnt);
+            cntmap[hand_cnt]=cnt;
+            roadmap.emplace_back(std::vector<std::pair<int,int>>());
+            cnt++;
             hand_cnt[i]++;
         }
     }
 
-    int maxsize = 100;
-    for (int xt = init_xt; xt > 0; --xt,maxsize *= 10) {
-        unsigned nw = 0;
-        while(nodes[xt][nw].size()<maxsize){
-            nodes[xt][nw&1u]=nodes[xt][nw];
-            nodes[xt-1][nw&1u]=nodes[xt-1][nw];
-            for (auto hand : nodes[xt][nw]) {
+    for (int xt = init_xt; xt > 1; --xt) {
+        /*while(nodes[xt].size()<maxsize)*/{
+            auto iternodes = nodes[xt];
+            for (auto hand : iternodes) {
+                int roadcnt = cntmap[hand];
                 for (int i = 0; i < 34; ++i) {
-                    printf("i:%d\n",i);
-                    if(hand[i]==4)continue;
                     hand[i]++;
                     /*if (calc_xt(hand) < xt)*/ {
                         for (int j = 0; j < 34; ++j) {
-                            if(j==i)continue;
+                            if (j == i)continue;
                             if (hand[j] > 0) {
                                 hand[j]--;
-
                                 int xt2 = calc_xt(hand);
-                                if (xt2 <= xt)
-                                {
-                                    nodes[xt2][nw&1u].insert(hand);
+                                if (xt2 < xt) {//TODO <=
+                                    if (nodes[xt2].count(hand) == 0) {
+                                        cntmap[hand_cnt] = cnt;
+                                        roadmap[roadcnt].emplace_back(std::make_pair(cnt,i));
+                                        roadmap.emplace_back(std::vector<std::pair<int,int>>{ std::make_pair(roadcnt,j)});
+                                        cnt++;
+                                        nodes[xt2].insert(hand);
+                                    }
                                 }
                                 hand[j]++;
                             }
@@ -93,8 +102,82 @@ int main() {
                     hand[i]--;
                 }
             }
-            printf("%d len: %d %d\n",xt,nodes[xt][nw&1u].size(),nodes[xt-1][nw&1u].size());
-            nw=1-nw;
+            printf("%d len: %d %d\n",xt,nodes[xt].size(),nodes[xt-1].size());
+        }
+    }
+
+    auto valmap = new std::vector<std::vector<double>*>*[cnt];
+    memset(valmap,0,cnt*sizeof(std::vector<std::vector<double>*>*));
+    //valmap: vectors of:
+    // firstone: calculated val0 val1 val2 val1 val2...
+    //  (number0) 10% -> hand A : val0 val1 val2 val1 val2...
+    //  (number0)  5% -> hand B : val0 val1 val2 val1 val2...
+    //  (number0)  3% -> hand C : val0 val1 val2 val1 val2...
+    //val0: min hu time
+    //for each newhand A B C:
+    //      hurate@round (round=1,2,3...) = sum ( val1 * val2 ^ (round - val0) )
+    //      eg. val0 = 0:
+    //          hurate@round 1 = sum ( val1 * val2 )
+    //          hurate@round 2 = sum ( val1 * val2 ^ 2)
+    //          hurate@round 3 = sum ( val1 * val2 ^ 3)
+    //      hurate before round: = sum ( val1 * val2 * (1 - val2 ^ round) / (1 - val2)
+    //for this hand:
+    //hurate:       ab      ab2     ab3
+    //transrate:    cd      cd2     cd3
+    //c:trate/d
+    //d:stayrate
+    //my hurate:
+    //      (abcd/(b-d))*b^k    -     (abcd/(b-d))*d^k
+
+
+
+    auto dvals = new double[cnt];
+    memset(dvals, 0, cnt*sizeof(double));
+    std::priority_queue<std::pair<double, int>> queue;
+    const int DECIDE_ROUND = 10.0;
+
+    for (auto hand : nodes[1]) {
+        int ting_cnt = 0;
+        for (int i = 0; i < 34; ++i) {
+            hand[i]++;
+            if (calc_xt(hand) == 0) ting_cnt += known_remain_cnt[i]; //TODO: known_remain_cnt
+            hand[i]--;
+        }
+        double val = ting_cnt / (double)remain_sum;
+        int roadcnt = cntmap[hand];
+        valmap[roadcnt] = new std::vector<std::vector<double>*>({new std::vector<double>({0.0, val/(1-val), 1 - val})});
+        //k round hu: sum ( val * val2 ^ (k - val0) )
+        double dval = 1 - pow(1 - val, DECIDE_ROUND); //DE_R = 1: dval = val
+        dvals[roadcnt] = dval;
+        queue.emplace(std::make_pair(dval, roadcnt));
+    }
+    while (!queue.empty()) {
+        auto top = queue.top();
+        for (auto i : roadmap[top.second]) {
+            if (dvals[i.first] < top.first) {
+                //calculate new dval
+                double tval = known_remain_cnt[i.second] / (double) remain_sum;
+                std::vector<std::vector<double> *> *thisval = valmap[i.first];
+                if(thisval == nullptr) thisval = new std::vector<std::vector<double> *>();
+                double stayrate = 1;
+                for (size_t k = 1; k < thisval->size(); ++k) { //skip first one
+                    stayrate -= thisval->at(k)->at(0);
+                }
+                //c: tval / stayrate
+                //d: stayrate
+                auto val0 = thisval->at(0);
+                for (size_t k = 1; k < thisval->size(); ++k) { //skip first one
+                    auto vals = thisval->at(k);
+                    for (int j = 0; j < (vals->size() - 2) / 2; ++j) {
+                        //a: vals->at(j)
+                        //b: vals->at(j+1)
+
+
+
+
+                    }
+                }
+            }
         }
     }
 
