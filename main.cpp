@@ -73,7 +73,7 @@ int main() {
         }
     }
 
-    for (int xt = init_xt; xt > 1; --xt) {
+    for (int xt = min(6,init_xt+1); xt > 1; --xt) {
         /*while(nodes[xt].size()<maxsize)*/{
             auto iternodes = nodes[xt];
             for (auto hand : iternodes) {
@@ -86,9 +86,9 @@ int main() {
                             if (hand[j] > 0) {
                                 hand[j]--;
                                 int xt2 = calc_xt(hand);
-                                if (xt2 < xt) {//TODO <=
+                                if (xt2 <= xt) {//TODO <=
                                     if (nodes[xt2].count(hand) == 0) {
-                                        cntmap[hand_cnt] = cnt;
+                                        cntmap[hand] = cnt;
                                         roadmap[roadcnt].emplace_back(std::make_pair(cnt,i));
                                         roadmap.emplace_back(std::vector<std::pair<int,int>>{ std::make_pair(roadcnt,j)});
                                         cnt++;
@@ -105,34 +105,21 @@ int main() {
             printf("%d len: %d %d\n",xt,nodes[xt].size(),nodes[xt-1].size());
         }
     }
+    printf("cnt:%d\n",cnt);
 
-    auto valmap = new std::vector<std::vector<double>*>*[cnt];
-    memset(valmap,0,cnt*sizeof(std::vector<std::vector<double>*>*));
-    //valmap: vectors of:
-    // firstone: calculated val0 val1 val2 val1 val2...
-    //  (number0) 10% -> hand A : val0 val1 val2 val1 val2...
-    //  (number0)  5% -> hand B : val0 val1 val2 val1 val2...
-    //  (number0)  3% -> hand C : val0 val1 val2 val1 val2...
-    //val0: min hu time
-    //for each newhand A B C:
-    //      hurate@round (round=1,2,3...) = sum ( val1 * val2 ^ (round - val0) )
-    //      eg. val0 = 0:
-    //          hurate@round 1 = sum ( val1 * val2 )
-    //          hurate@round 2 = sum ( val1 * val2 ^ 2)
-    //          hurate@round 3 = sum ( val1 * val2 ^ 3)
-    //      hurate before round: = sum ( val1 * val2 * (1 - val2 ^ round) / (1 - val2)
-    //for this hand:
-    //hurate:       ab      ab2     ab3
-    //transrate:    cd      cd2     cd3
-    //c:trate/d
-    //d:stayrate
-    //my hurate:
-    //      (abcd/(b-d))*b^k    -     (abcd/(b-d))*d^k
+    const int Remain_Round = max(6, 13 - round);
+    const double* Remain_Prob = round_prob + (18 - Remain_Round);
 
-
+    auto valmap = new double*[cnt];
+    for (int l = 0; l < cnt; ++l) {
+        valmap[l] = new double[Remain_Round];
+        memset(valmap[l],0,Remain_Round * sizeof(double));
+    }
 
     auto dvals = new double[cnt];
     memset(dvals, 0, cnt*sizeof(double));
+    auto mvrate = new double[cnt];
+    memset(mvrate, 0, cnt*sizeof(double));
     std::priority_queue<std::pair<double, int>> queue;
     const int DECIDE_ROUND = 10.0;
 
@@ -143,41 +130,100 @@ int main() {
             if (calc_xt(hand) == 0) ting_cnt += known_remain_cnt[i]; //TODO: known_remain_cnt
             hand[i]--;
         }
+        assert(ting_cnt > 0);
+        assert(cntmap.count(hand) > 0);
         double val = ting_cnt / (double)remain_sum;
         int roadcnt = cntmap[hand];
-        valmap[roadcnt] = new std::vector<std::vector<double>*>({new std::vector<double>({0.0, val/(1-val), 1 - val})});
-        //k round hu: sum ( val * val2 ^ (k - val0) )
-        double dval = 1 - pow(1 - val, DECIDE_ROUND); //DE_R = 1: dval = val
+        valmap[roadcnt][0] = val;
+        double dval = val * Remain_Prob[0];
+        for (int j = 1; j < Remain_Round; ++j) {
+            double val2 = valmap[roadcnt][j-1] * (1 - val);
+            assert(val2 > 0 && val2 < 1);
+            valmap[roadcnt][j] = val2;
+            dval += val2 * Remain_Prob[j];
+            assert(dval > 0 && dval < 1);
+        }
         dvals[roadcnt] = dval;
         queue.emplace(std::make_pair(dval, roadcnt));
     }
+
+    int minqueue = 1000000;
+
     while (!queue.empty()) {
         auto top = queue.top();
+        if(top.second < 9) break;
+        if(top.first != dvals[top.second]){
+            assert(top.first < dvals[top.second]);
+            queue.pop();
+            continue;
+        }
         for (auto i : roadmap[top.second]) {
+            if (minqueue > i.first){
+                minqueue = i.first; printf("queue:%d\n",minqueue);
+            }
+            if(i.first < 9){
+                printf("visit:%d\n",i.first);
+            }
             if (dvals[i.first] < top.first) {
+                double olddval = dvals[i.first];
                 //calculate new dval
                 double tval = known_remain_cnt[i.second] / (double) remain_sum;
-                std::vector<std::vector<double> *> *thisval = valmap[i.first];
-                if(thisval == nullptr) thisval = new std::vector<std::vector<double> *>();
-                double stayrate = 1;
-                for (size_t k = 1; k < thisval->size(); ++k) { //skip first one
-                    stayrate -= thisval->at(k)->at(0);
+                mvrate[i.first] += tval;
+                if(!(mvrate[i.first] >= 0 && mvrate[i.first] < 1)){
+                    printf("mverror:%d %lf %lf",i.first,mvrate[i.first],tval);
                 }
-                //c: tval / stayrate
-                //d: stayrate
-                auto val0 = thisval->at(0);
-                for (size_t k = 1; k < thisval->size(); ++k) { //skip first one
-                    auto vals = thisval->at(k);
-                    for (int j = 0; j < (vals->size() - 2) / 2; ++j) {
-                        //a: vals->at(j)
-                        //b: vals->at(j+1)
-
-
-
-
+                assert(mvrate[i.first] >= 0 && mvrate[i.first] < 1);
+                double stayrate = 1 - mvrate[i.first];
+                double strate = 1;
+                double dval = 0;
+                for (int j = 1; j < Remain_Round; ++j) { //hu@j round = arrive@(j-k)round + hu@k round
+                    for (int k = j - 1; k >= 0; --k) {
+                        valmap[i.first][j] += valmap[top.second][k] * tval * strate;
+                        if(!(valmap[i.first][j] >= 0 && valmap[i.first][j] < 1)){
+                            printf("valerror: %d %d %lf\n",i.first,j,valmap[i.first][j]);
+                        }
+                        strate *= stayrate;
                     }
+                    dval += valmap[i.first][j] * Remain_Prob[j];
                 }
+                dvals[i.first] = dval;
+                /*
+                if(dval >= top.first){
+                    printf("dval upper:%d %d %lf -> %lf %lf\n new:",i.first,top.second,olddval,dval,top.first);
+                    for (int j = 0; j < Remain_Round; ++j) {
+                        printf("%lf ",valmap[i.first][j]);
+                    }
+                    printf("\n");
+                    for (int j = 0; j < Remain_Round; ++j) {
+                        printf("%lf ",valmap[top.second][j]);
+                    }
+                    printf("\n");
+                }*/
+                if(!(dval >= 0 && dval < 1))printf("%d %lf\n",i.first, dval);
+                assert(dval >= 0 && dval < 1);
+                if(i.first == 1164)printf("1164!%lf\n",dval);
+                queue.emplace(std::make_pair(dval, i.first));
             }
+        }
+
+        while (queue.top() != top){
+            auto top2 = queue.top();
+            printf("error: %d %lf %d %lf %d\n",queue.size(),top.first, top.second, top2.first, top2.second);
+            queue.pop();
+        }
+        queue.pop();
+    }
+    int lastcnt = 0;
+    for (int i = 0; i < 34; ++i) {
+        if(hand_cnt[i]>0){
+            printf("card: %s ",mname[i]);
+            printf("dval: %lf ",dvals[lastcnt]);
+            printf("valmap: ");
+            for (int j = 0; j < Remain_Round; ++j) {
+                printf("%d ",int(valmap[lastcnt][j]*1000000));
+            }
+            printf("\n");
+            lastcnt++;
         }
     }
 
