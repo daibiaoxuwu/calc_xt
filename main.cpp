@@ -21,6 +21,7 @@ int dppath[MX][5][CHILD_NUM];
 int dpxt[MX];
 double fact[136];
 int tot;
+int BIG = 200000;
 
 int calc_xt(const std::array<int,34> hand_cnts){
     int ha_cursor = MAX_HU_VALUE+1;
@@ -31,202 +32,247 @@ int calc_xt(const std::array<int,34> hand_cnts){
     return dpxt[ha_cursor];
 }
 int main() {
-    FILE* fdp = fopen("D:\\workspace\\mahjong_old\\calc_automation\\cmake-build-debug\\automation_xt2.txt", "r");
-    fscanf(fdp,"%d",&tot);
-    printf("tot:%d\n",tot);
-    for(int i = 1; i <= tot; ++i){
+    double MaxVal = 0;
+    for (int i1 = 0; i1 < 18; ++i1) { MaxVal += round_prob[i1] * round_prob[i1]; }
+    FILE *fdp = fopen("D:\\workspace\\mahjong_old\\calc_automation\\cmake-build-debug\\automation_xt2.txt", "r");
+    fscanf(fdp, "%d", &tot);
+    printf("tot:%d\n", tot);
+    for (int i = 1; i <= tot; ++i) {
         for (int ci = 0; ci < 5; ++ci) {
             for (int cj = 0; cj < CHILD_NUM; ++cj) {
                 fscanf(fdp, "%d", &dppath[i][ci][cj]);
             }
         }
     }
-    for(int i = 1; i <= tot; ++i){
+    for (int i = 1; i <= tot; ++i) {
         fscanf(fdp, "%d", &dpxt[i]);
     }
     fclose(fdp);
 
-    fin = fopen("input.txt","r");
-    int rest_num; fscanf(fin,"%d", &rest_num);
+    fin = fopen("input.txt", "r");
+    int rest_num;
+    fscanf(fin, "%d", &rest_num);
     int round = 18 - rest_num / 4;//start with 69 -> 1.end with 0 - 18.
-    std::array<int,34> hand_cnt{}; for (int i = 0; i < 34; ++ i) fscanf(fin, "%d", &hand_cnt[i]);
-    int known_remain_cnt[34]; for (int i = 0; i < 34; ++ i) fscanf(fin,"%d", &known_remain_cnt[i]);
-    int remain_sum = 0; for (int i : known_remain_cnt) remain_sum += i;
-    int dora[34]; for (int i = 0; i < 34; ++ i) fscanf(fin,"%d", &dora[i]);
+    std::array<int, 34> hand_cnt{};
+    for (int i = 0; i < 34; ++i) fscanf(fin, "%d", &hand_cnt[i]);
+    int known_remain_cnt[34];
+    for (int i = 0; i < 34; ++i) fscanf(fin, "%d", &known_remain_cnt[i]);
+    double remain_sum = 0;
+    for (int i : known_remain_cnt) remain_sum += i;
+    int dora[34];
+    for (int i = 0; i < 34; ++i) fscanf(fin, "%d", &dora[i]);
     fclose(fin);
 
     int init_xt = calc_xt(hand_cnt);
-    printf("%d\n",init_xt);
+    printf("%d\n", init_xt);
 
-    std::set<std::array<int,34>> nodes[7]; //TODO: do not need this set
-    std::map<std::array<int,34>, int> cntmap;
-    std::vector<std::vector<std::pair<int,int>>> roadmap;
-    int cnt = 0;
-    for (int i = 0; i < 34; ++i) {
-        if(hand_cnt[i]>0){
-            hand_cnt[i]--;
-            nodes[calc_xt(hand_cnt)].insert(hand_cnt);
-            cntmap[hand_cnt]=cnt;
-            roadmap.emplace_back(std::vector<std::pair<int,int>>());
-            cnt++;
-            hand_cnt[i]++;
+    std::map<std::array<int, 34>, int> cntmap3; //todo: turn to set
+    std::map<std::array<int, 34>, int> cntmap4;
+    auto handmap3 = new std::array<int, 34>[BIG];
+    auto roadmap3 = new std::array<int, 34>[BIG];
+    auto handmap4 = new std::array<int, 34>[BIG];
+    auto roadmap4 = new std::array<int, 34>[BIG];
+    for (int k = 0; k < BIG; ++k) {
+        for (int i = 0; i < 34; ++i) {
+            if(roadmap3[k][i] != 0) printf("error!");
+        }
+    }
+    std::set<int> nodes0;
+
+    //zero: empty. start from 1.
+    cntmap4[hand_cnt] = 1;
+    handmap4[1] = hand_cnt; //14: cur
+    int cnt4 = 2;
+    int cnt3 = 1;
+    for (int cur = 1; cur < cnt4; ++cur) {
+        auto hand = handmap4[cur];
+        if(cur == 9292 || cur == 9497) {
+            printf("--:%d: ",cur);
+            for (int j = 0; j < 34; ++j) {
+                printf("%d ", hand[j]);
+            }
+            printf("\n");
+        }
+        for (int i = 0; i < 34; ++i) {
+            if (hand[i] > 0) {
+                hand[i]--;
+
+                if (cntmap3.count(hand) == 0) {
+                    if(cnt3 < BIG) {
+                        cntmap3[hand] = cnt3;  //13: cnt3
+                        handmap3[cnt3] = hand;
+                        roadmap4[cur][i] = cnt3;
+                        if ((cur == 9292 || cur == 9497) && cnt3 == 21411) {
+                            printf("1 c:%d i:%d\n", cur, i);
+                            for (int j = 0; j < 34; ++j) {
+                                printf("%d ", hand[j]);
+                            }
+                            printf("\n");
+                        }
+                        roadmap3[cnt3][i] = cur;
+
+                        for (int j = 0; j < 34; ++j) { //14: cnt4
+                            if (j == i)continue;
+                            hand[j]++;
+                            if (cntmap4.count(hand) == 0) {
+                                if (cnt4 < BIG) {
+                                    int xt2 = calc_xt(hand);
+                                    if (xt2 <= init_xt + 1) {//TODO <= condition
+                                        cntmap4[hand] = cnt4;
+                                        handmap4[cnt4] = hand;
+                                        roadmap3[cnt3][j] = cnt4;
+                                        roadmap4[cnt4][j] = cnt3;
+                                        if ((cnt4 == 9292 || cnt4 == 9497) && cnt3 == 21411)
+                                            printf("2 c:%d i:%d j:%d\n", cnt4, i, j);
+                                        if (xt2 == 0) {
+                                            nodes0.insert(cnt4);
+                                        }
+                                        cnt4++;
+                                    }
+                                }
+                            } else {
+                                int id4 = cntmap4[hand];
+                                roadmap4[id4][j] = cnt3;
+                                if ((id4 == 9292 || id4 == 9497) && cnt3 == 21411)
+                                    printf("3 c:%d i:%d j:%d\n", id4, i, j);
+                                roadmap3[cnt3][j] = id4;
+                            }
+                            hand[j]--;
+                        }
+
+                        cnt3++;
+                    }
+                } else {
+                    int id3 = cntmap3[hand];
+                    roadmap3[id3][i] = cur;
+                    if((cur == 9292 || cur == 9497) && id3 == 21411)
+                    {
+                        printf("4 c:%d i:%d\n",cur,i);
+                        for (int j = 0; j < 34; ++j) {
+                            printf("%d ",hand[j]);
+                        }
+                        printf("\n");
+                    }
+                    roadmap4[cur][i] = id3;
+                }
+                hand[i]++;
+            }
         }
     }
 
-    for (int xt = min(6,init_xt+1); xt > 1; --xt) {
-        /*while(nodes[xt].size()<maxsize)*/{
-            auto iternodes = nodes[xt];
-            for (auto hand : iternodes) {
-                int roadcnt = cntmap[hand];
-                for (int i = 0; i < 34; ++i) {
-                    hand[i]++;
-                    /*if (calc_xt(hand) < xt)*/ {
-                        for (int j = 0; j < 34; ++j) {
-                            if (j == i)continue;
-                            if (hand[j] > 0) {
-                                hand[j]--;
-                                int xt2 = calc_xt(hand);
-                                if (xt2 <= xt) {//TODO <=
-                                    if (nodes[xt2].count(hand) == 0) {
-                                        cntmap[hand] = cnt;
-                                        roadmap[roadcnt].emplace_back(std::make_pair(cnt,i));
-                                        roadmap.emplace_back(std::vector<std::pair<int,int>>{ std::make_pair(roadcnt,j)});
-                                        cnt++;
-                                        nodes[xt2].insert(hand);
+    printf("cnt3:%d cnt4:%d\n", cnt3, cnt4);
+    printf("%d %d\n",roadmap4[9497][20],roadmap4[9292][20]);
+    return 0;
+    auto val3 = new double[BIG][18][34];
+    val3[100][7][2] = 123;
+    memset(val3, 0, 18 * 34 * BIG * sizeof(double));
+    for (int m = 0; m < BIG; ++m) {
+        for (int i = 0; i < 18; ++i) {
+            for (int j = 0; j < 34; ++j) {
+                if (val3[m][i][j] != 0) {
+                    printf("error %d %d %d\n", m, j, val3[m][j]);
+                }
+            }
+        }
+    }
+    double (*val4)[18] = new double[BIG][18];
+    memset(val4, 0, 18 * BIG * sizeof(double));
+    double (*val3t)[18] = new double[BIG][18];
+    memset(val3t, 0, 18 * BIG * sizeof(double));
+
+    std::multimap<double, int, std::greater<>> queue;
+    for (auto id4 : nodes0) {
+        queue.emplace(std::make_pair(MaxVal, id4));
+        for (int i = 0; i < 18; ++i) { val4[id4][i] = round_prob[i]; }
+    }
+
+    while (!queue.empty()){
+        auto top = queue.begin();
+        printf("%lf %d\n",top->first,top->second);
+
+        auto roads = roadmap4[top->second];
+        for (int i = 0; i < 34; ++i) {
+            int id3 = roads[i];
+            if(id3 > 0){                        //top->second:14 --i--> id3:13
+                int improve = 0;
+                for (int k = 0; k < 18 - 1; ++k) {
+                    double newval = val4[top->second][k + 1];
+                    if(val3t[id3][k] < newval){
+                        if(val3[id3][k][i] > newval){
+                            printf("ee:%d %d %d %lf %lf %lf\n",id3,k,i,val3[id3][k][i],newval,val3t[id3][k]);
+                        }
+                        if(id3 == 21411)printf("--:%d %d %d %lf %lf %lf\n",id3,k,i,val3[id3][k][i],newval,val3t[id3][k]);
+
+                        if(val3[id3][k][i] < newval) {
+                            if(improve == 0) improve = k;
+                            val3[id3][k][i] = newval;
+                        }
+                    }
+                }
+                if(improve > 0) { //top->second:14 --i--> id3:13 --j-->id4:14
+                    //calculate val3t 0-18
+                    auto roads3 = roadmap3[id3];
+                    for (int k = 0; k < 18; ++k) { //arrive@k total value (val3t[k])
+                        double tval = 0;
+                        double stval = 1;
+
+                        for (int l = k; l < 18; ++l) { //leave@l value
+                            double dstval = 1;
+                            for (int n = 0; n < 34; ++n) {
+                                if (val3[id3][l][n] > 0) {
+                                    tval += stval * known_remain_cnt[n] / remain_sum * val3[id3][l][n];
+                                    dstval -= known_remain_cnt[n] / remain_sum;
+                                }
+                            }
+                            stval *= dstval;
+                        }
+                        assert(tval >= 0 && tval < 1);
+                        assert(tval >= 0 && tval < round_prob[k]);
+                            if (val3t[id3][k] > tval)
+                                printf("e:%d %d %lf %lf\n",k,improve,tval,val3t[id3][k]);
+                        val3t[id3][k] = tval;
+                    }
+
+                    //send to all road4
+                    for (int j = 0; j < 34; ++j) {
+                        int id4 = roads3[j];
+                        if (id4 > 0) {
+                            bool improve2 = false;
+                            double oldval = 0;
+                            for (int k = 0; k < 18; ++k) {
+                                oldval += val4[id4][k] * round_prob[k];
+                            }
+
+                            for (int k = 0; k < 18; ++k) {
+                                if(val4[id4][k] < val3t[id3][k]){
+                                    val4[id4][k] = val3t[id3][k];
+                                    improve2 = true;
+                                }
+                            }
+                            if(improve2){
+                                for (auto test = queue.lower_bound(oldval); test != queue.upper_bound(oldval); ++test) {
+                                    if (test->second == id4) {
+                                        queue.erase(test);
+                                        break;
                                     }
                                 }
-                                hand[j]++;
+                                double val = 0;
+                                for (int k = 0; k < 18; ++k) {
+                                    val += val4[id4][k] * round_prob[k];
+                                }
+                                assert(val < MaxVal);
+                                queue.emplace(std::make_pair(val, id4));
                             }
                         }
                     }
-                    hand[i]--;
+
+
                 }
             }
-            printf("%d len: %d %d\n",xt,nodes[xt].size(),nodes[xt-1].size());
         }
+
+        queue.erase(top);
     }
-    printf("cnt:%d\n",cnt);
-
-    const int Remain_Round = max(6, 13 - round);
-    const double* Remain_Prob = round_prob + (18 - Remain_Round);
-
-    auto valmap = new double*[cnt];
-    for (int l = 0; l < cnt; ++l) {
-        valmap[l] = new double[Remain_Round];
-        memset(valmap[l],0,Remain_Round * sizeof(double));
-    }
-
-    auto dvals = new double[cnt];
-    memset(dvals, 0, cnt*sizeof(double));
-    auto mvrate = new double[cnt];
-    memset(mvrate, 0, cnt*sizeof(double));
-    std::priority_queue<std::pair<double, int>> queue;
-    const int DECIDE_ROUND = 10.0;
-
-    for (auto hand : nodes[1]) {
-        int ting_cnt = 0;
-        for (int i = 0; i < 34; ++i) {
-            hand[i]++;
-            if (calc_xt(hand) == 0) ting_cnt += known_remain_cnt[i]; //TODO: known_remain_cnt
-            hand[i]--;
-        }
-        assert(ting_cnt > 0);
-        assert(cntmap.count(hand) > 0);
-        double val = ting_cnt / (double)remain_sum;
-        int roadcnt = cntmap[hand];
-        valmap[roadcnt][0] = val;
-        double dval = val * Remain_Prob[0];
-        for (int j = 1; j < Remain_Round; ++j) {
-            double val2 = valmap[roadcnt][j-1] * (1 - val);
-            assert(val2 > 0 && val2 < 1);
-            valmap[roadcnt][j] = val2;
-            dval += val2 * Remain_Prob[j];
-            assert(dval > 0 && dval < 1);
-        }
-        dvals[roadcnt] = dval;
-        queue.emplace(std::make_pair(dval, roadcnt));
-    }
-
-    int minqueue = 1000000;
-
-    while (!queue.empty()) {
-        auto top = queue.top();
-        if(top.second < 9) break;
-        if(top.first != dvals[top.second]){
-            assert(top.first < dvals[top.second]);
-            queue.pop();
-            continue;
-        }
-        for (auto i : roadmap[top.second]) {
-            if (minqueue > i.first){
-                minqueue = i.first; printf("queue:%d\n",minqueue);
-            }
-            if(i.first < 9){
-                printf("visit:%d\n",i.first);
-            }
-            if (dvals[i.first] < top.first) {
-                double olddval = dvals[i.first];
-                //calculate new dval
-                double tval = known_remain_cnt[i.second] / (double) remain_sum;
-                mvrate[i.first] += tval;
-                if(!(mvrate[i.first] >= 0 && mvrate[i.first] < 1)){
-                    printf("mverror:%d %lf %lf",i.first,mvrate[i.first],tval);
-                }
-                assert(mvrate[i.first] >= 0 && mvrate[i.first] < 1);
-                double stayrate = 1 - mvrate[i.first];
-                double strate = 1;
-                double dval = 0;
-                for (int j = 1; j < Remain_Round; ++j) { //hu@j round = arrive@(j-k)round + hu@k round
-                    for (int k = j - 1; k >= 0; --k) {
-                        valmap[i.first][j] += valmap[top.second][k] * tval * strate;
-                        if(!(valmap[i.first][j] >= 0 && valmap[i.first][j] < 1)){
-                            printf("valerror: %d %d %lf\n",i.first,j,valmap[i.first][j]);
-                        }
-                        strate *= stayrate;
-                    }
-                    dval += valmap[i.first][j] * Remain_Prob[j];
-                }
-                dvals[i.first] = dval;
-                /*
-                if(dval >= top.first){
-                    printf("dval upper:%d %d %lf -> %lf %lf\n new:",i.first,top.second,olddval,dval,top.first);
-                    for (int j = 0; j < Remain_Round; ++j) {
-                        printf("%lf ",valmap[i.first][j]);
-                    }
-                    printf("\n");
-                    for (int j = 0; j < Remain_Round; ++j) {
-                        printf("%lf ",valmap[top.second][j]);
-                    }
-                    printf("\n");
-                }*/
-                if(!(dval >= 0 && dval < 1))printf("%d %lf\n",i.first, dval);
-                assert(dval >= 0 && dval < 1);
-                if(i.first == 1164)printf("1164!%lf\n",dval);
-                queue.emplace(std::make_pair(dval, i.first));
-            }
-        }
-
-        while (queue.top() != top){
-            auto top2 = queue.top();
-            printf("error: %d %lf %d %lf %d\n",queue.size(),top.first, top.second, top2.first, top2.second);
-            queue.pop();
-        }
-        queue.pop();
-    }
-    int lastcnt = 0;
-    for (int i = 0; i < 34; ++i) {
-        if(hand_cnt[i]>0){
-            printf("card: %s ",mname[i]);
-            printf("dval: %lf ",dvals[lastcnt]);
-            printf("valmap: ");
-            for (int j = 0; j < Remain_Round; ++j) {
-                printf("%d ",int(valmap[lastcnt][j]*1000000));
-            }
-            printf("\n");
-            lastcnt++;
-        }
-    }
-
     return 0;
-
 }
+
