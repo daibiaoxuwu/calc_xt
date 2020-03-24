@@ -21,7 +21,7 @@ int dppath[MX][5][CHILD_NUM];
 int dpxt[MX];
 double fact[136];
 int tot;
-int BIG = 3000000;
+int BIG = 10000000;
 
 int calc_xt(const std::array<int,34> hand_cnts){
     int ha_cursor = MAX_HU_VALUE+1;
@@ -36,7 +36,7 @@ int main() {
     for (int i1 = 0; i1 < 18; ++i1) { MaxVal += round_prob[i1] * round_prob[i1]; }
     FILE *fdp = fopen("..\\automation_xt2.txt", "r");
     fscanf(fdp, "%d", &tot);
-    printf("tot:%d\n", tot);
+//    printf("tot:%d\n", tot);
     for (int i = 1; i <= tot; ++i) {
         for (int ci = 0; ci < 5; ++ci) {
             for (int cj = 0; cj < CHILD_NUM; ++cj) {
@@ -49,7 +49,7 @@ int main() {
     }
     fclose(fdp);
 
-    fin = fopen("..\\input.txt", "r");
+    fin = fopen("input.txt", "r");
     int rest_num;
     fscanf(fin, "%d", &rest_num);
     int round = 18 - rest_num / 4;//start with 69 -> 1.end with 0 - 18.
@@ -64,7 +64,9 @@ int main() {
     fclose(fin);
 
     int init_xt = calc_xt(hand_cnt);
-    printf("%d\n", init_xt);
+//    printf("%d\n", init_xt);
+    if(init_xt > 3)
+        return -1000;
 
     std::map<std::array<int, 34>, int> cntmap3; //todo: turn to set
     std::map<std::array<int, 34>, int> cntmap4;
@@ -72,22 +74,17 @@ int main() {
     auto roadmap3 = new std::array<int, 34>[BIG];
     auto handmap4 = new std::array<int, 34>[BIG];
     auto roadmap4 = new std::array<int, 34>[BIG];
-    for (int k = 0; k < BIG; ++k) {
-        for (int i = 0; i < 34; ++i) {
-            if(roadmap3[k][i] != 0) printf("error!");
-        }
-    }
     std::set<int> nodes0;
 
     //zero: empty. start from 1.
     cntmap4[hand_cnt] = 1;
     handmap4[1] = hand_cnt; //14: cur
-    xt_limit[1] = init_xt + 1;
+    xt_limit[1] = init_xt;
     int cnt4 = 2;
     int cnt3 = 1;
     int current = 1;
-    for (; current < cnt4 && cnt3 < BIG - 1000 && cnt4 < BIG - 1000; ++current) {
-        if (current % 10000 == 0)printf("curr:%d cnt4:%d cnt3:%d\n", current, cnt4, cnt3);
+    for (; current < cnt4 && cnt3 < BIG - 1000 && cnt4 < BIG - 1000 && nodes0.size() < 250 ; ++current) {
+//        if (current % 10000 == 0)printf("curr:%d cnt4:%d cnt3:%d\n", current, cnt4, cnt3, nodes0.size());
         auto hand = handmap4[current];
         for (int i = 0; i < 34; ++i) {
             if (hand[i] > 0) {
@@ -135,43 +132,63 @@ int main() {
         }
     }
 
-    printf("cnt3:%d cnt4:%d\n", cnt3, cnt4);
-    auto val3 = new double[BIG][18][34];
-    memset(val3, 0, 18 * 34 * BIG * sizeof(double));
-    double (*val4)[18] = new double[BIG][18];
-    memset(val4, 0, 18 * BIG * sizeof(double));
-    double (*val3t)[18] = new double[BIG][18];
-    memset(val3t, 0, 18 * BIG * sizeof(double));
+    printf("initxt:%d cur:%d cnt3:%d cnt4:%d zero:%d\n",init_xt, current, cnt3, cnt4,nodes0.size());
+    auto val3 = new double[cnt3][18][34];
+    memset(val3, 0, 18 * 34 * cnt3 * sizeof(double));
+    double (*val4)[18] = new double[current][18];
+    memset(val4, 0, 18 * current * sizeof(double));
+    double (*val3t)[18] = new double[cnt3][18];
+    memset(val3t, 0, 18 * cnt3 * sizeof(double));
 
     std::multimap<double, int, std::greater<>> queue;
-    printf("zero:%d\n",nodes0.size());
+//    printf("zero:%d\n",nodes0.size());
     for (auto id4 : nodes0) {
         queue.emplace(std::make_pair(MaxVal, id4));
-        for (int i = 0; i < 18; ++i) { val4[id4][i] = round_prob[i]; }
+        if(id4 < current) {
+            for (int i = 0; i < 18; ++i) { val4[id4][i] = round_prob[i]; }
+        }
     }
+    //for zero nodes outside current
+    for (int i = 0; i < 18; ++i) { val4[0][i] = round_prob[i]; }
 
-    double minq = 20;
+    double minq = 20, minq2 = 16;
     while (!queue.empty()){
         auto top = queue.begin();
+        if(top->second >= current) assert(nodes0.count(top->second) > 0);
         bool dflag = (minq < 0.014 && queue.size() == 28704);
         dflag = false;
         if(dflag) printf("st:%lf %d\n",top->first,top->second);
         assert(minq >= top->first);
         if(minq > top->first){
             minq = top->first;
-            printf("minq:%lf qu:%d\n",minq,queue.size());
-            /*
-            int k3 = 1;
-            for (int k1 = 0; k1 < 34; ++k1) {
-                if(hand_cnt[k1] > 0){
-                    printf("%s",mname[k1]);
-                    for (int i = 0; i < 18; ++i) {
-                        printf("%.3lf ", val3t[k3][i]);
+            if(false) {
+                printf("minq:%lf qu:%d ",minq,queue.size());
+                int bestc = 0;
+                double bestval = 0;
+                int k3 = 1;
+                int oldbest = -1;
+                for (int j = 0; j < 2; ++j) {
+                    bestval = 0;
+                    for (int k1 = 0; k1 < 34; ++k1) {
+                        if (k1 == oldbest) continue;
+                        if (hand_cnt[k1] > 0) {
+                            double val = 0;
+                            for (int i = 0; i < 18; ++i) {
+                                val += val3t[k3][i] * round_prob[i];
+                            }
+                            if (val > bestval) {
+                                bestval = val;
+                                bestc = k1;
+                            }
+                            ++k3;
+                        }
                     }
-                    printf("\n");
-                    ++k3;
+                    printf("b:%s %lf\t", mname[bestc], bestval);
+                    oldbest = bestc;
                 }
-            }*/
+                printf("\n");
+                minq2 *= 0.8;
+            }
         }
         assert(top->second > 0 && top->second < BIG);
         auto roads = roadmap4[top->second];
@@ -185,8 +202,9 @@ int main() {
                 if((id3 == 2 || id3 == 4) && i == 12){
                //     printf("--id3:%d top:%lf %d\n",id3,top->first,top->second);
                 }
+                auto val4v = (top->second >= current ? val4[0] : val4[top->second]);
                 for (int k = 0; k < 18 - 1; ++k) {
-                    double newval = val4[top->second][k + 1];
+                    double newval = val4v[k + 1];
                     if((id3 == 2 || id3 == 4)){
                       //  printf("---id3:%d top:%lf %d k:%d i:%s val:%lf - %lf sval:%lf\n",id3,top->first,top->second,k,mname[i],val3t[id3][k],newval,val3[id3][k][i]);
                     }
@@ -233,43 +251,44 @@ int main() {
                         int id4 = roads3[j];
                         if(dflag) printf("id4:%d\n",id4);
                         assert(id4 >= 0 && id4 < BIG);
-                        if(id4 == top->second){
-                            for (int k = 0; k < 18; ++k) {
-                                assert(val4[id4][k] > val3t[id3][k]);
-                            }
-                        }
-                        if (id4 > 0 && id4 != top->second) {
-                            bool improve2 = false;
-                            double oldval = 0;
-                            for (int k = 0; k < 18; ++k) {
-                                oldval += val4[id4][k] * round_prob[k];
-                            }
-
-                            for (int k = 0; k < 18; ++k) {
-                                if(val4[id4][k] < val3t[id3][k]){
-                                    val4[id4][k] = val3t[id3][k];
-                                    improve2 = true;
+                        if(id4 < current) {
+                            if (id4 == top->second) {
+                                for (int k = 0; k < 18; ++k) {
+                                    assert(val4[id4][k] > val3t[id3][k]);
                                 }
                             }
-                            if(improve2){
-                                if(dflag) printf("id4 improve2:%d\n",id4);
-                                assert(id4 != top->second);
-                                for (auto test = queue.lower_bound(oldval); test != queue.upper_bound(oldval); ++test) {
-                                    if(dflag) printf("eraze:%lf %d\n",test->first,test->second);
-                                    if (test->second == id4) {
-                                        queue.erase(test);
-                                        break;
+                            if (id4 > 0 && id4 != top->second) {
+                                bool improve2 = false;
+                                double oldval = 0;
+                                for (int k = 0; k < 18; ++k) {
+                                    oldval += val4[id4][k] * round_prob[k];
+                                }
+
+                                for (int k = 0; k < 18; ++k) {
+                                    if (val4[id4][k] < val3t[id3][k]) {
+                                        val4[id4][k] = val3t[id3][k];
+                                        improve2 = true;
                                     }
                                 }
-                                double val = 0;
-                                for (int k = 0; k < 18; ++k) {
-                                    val += val4[id4][k] * round_prob[k];
+                                if (improve2) {
+                                    if (dflag) printf("id4 improve2:%d\n", id4);
+                                    assert(id4 != top->second);
+                                    for (auto test = queue.lower_bound(oldval);
+                                         test != queue.upper_bound(oldval); ++test) {
+                                        if (dflag) printf("eraze:%lf %d\n", test->first, test->second);
+                                        if (test->second == id4) {
+                                            queue.erase(test);
+                                            break;
+                                        }
+                                    }
+                                    double val = 0;
+                                    for (int k = 0; k < 18; ++k) {
+                                        val += val4[id4][k] * round_prob[k];
 
-                                }
-                                assert(val < MaxVal);
-                                if(dflag) printf("fin\n");
+                                    }
+                                    assert(val < MaxVal);
+                                    if (dflag) printf("fin\n");
 
-                                if(id4 < current) {
                                     queue.emplace(std::make_pair(val, id4));
                                 }
                             }
@@ -292,16 +311,27 @@ int main() {
         assert(erasenum==1);
     }
     int k3 = 1;
+    bool eflag = false;
+    int bestc = 0; double bestval = 0;
     for (int k1 = 0; k1 < 34; ++k1) {
         if(hand_cnt[k1] > 0){
-            printf("%s\n",mname[k1]);
+            printf("%s ",mname[k1]);
+            double val = 0;
             for (int i = 0; i < 18; ++i) {
                 printf("%lf ", val3t[k3][i]);
+                val += val3t[k3][i] * round_prob[i];
             }
             printf("\n");
+            if(val>bestval) {
+                bestval = val;
+                bestc = k1;
+                eflag = false;
+            } else if(val == bestval)
+                eflag = true;
             ++k3;
         }
     }
-    return 0;
+    if(eflag)printf("not separated!\n");
+    return (eflag ? -bestc : bestc);
 }
 
