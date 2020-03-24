@@ -21,7 +21,7 @@ int dppath[MX][5][CHILD_NUM];
 int dpxt[MX];
 double fact[136];
 int tot;
-int BIG = 300000;
+int BIG = 1000000;
 
 int calc_xt(const std::array<int,34> hand_cnts){
     int ha_cursor = MAX_HU_VALUE+1;
@@ -170,7 +170,7 @@ int main() {
         assert(minq >= top->first);
         if(minq > top->first){
             minq = top->first;
-            printf("minq:%lf %d\n",minq,queue.size());
+//            printf("minq:%lf %d\n",minq,queue.size());
             /*
             int k3 = 1;
             for (int k1 = 0; k1 < 34; ++k1) {
@@ -250,7 +250,7 @@ int main() {
                         assert(id4 >= 0 && id4 < BIG);
                         if(id4 == top->second){
                             for (int k = 0; k < 18; ++k) {
-//                                assert(val4[id4][k] > val3t[id3][k]);
+                                assert(val4[id4][k] > val3t[id3][k]);
                             }
                         }
                         if (id4 > 0 && id4 != top->second) {
@@ -260,16 +260,14 @@ int main() {
                                 oldval += val4[id4][k] * round_prob[k];
                             }
 
+                            if(id4 == 113){
+                                printf("-++id3:%d id4:%d top:%lf %d i:%s j:%s\n",id3,id4,top->first,top->second,mname[i],mname[j]);
+                            }
                             for (int k = 0; k < 18; ++k) {
-                                if(id4 == 113){
-                                    printf("-++id3:%d id4:%d top:%lf %d k:%d i:%s j:%s newval:%lf val:%lf",id3,id4,top->first,top->second,k,mname[i],mname[j],val3t[id3][k],val4[id4][k]);
-                                }
                                 if(val4[id4][k] < val3t[id3][k]){
                                     val4[id4][k] = val3t[id3][k];
+                                    if(id4 == 113 && !improve2) printf("113improve\n");
                                     improve2 = true;
-                                }
-                                if(id4 == 113) {
-                                    printf(" -- %lf\n", val4[id4][k]);
                                 }
                             }
                             if(improve2){
@@ -303,6 +301,7 @@ int main() {
             if (test->second == top->second) {
                 queue.erase(test);
                 erasenum++;
+                break;
             }
         }
         if(dflag)printf("enum:%d\n",erasenum);
