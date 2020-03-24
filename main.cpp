@@ -185,7 +185,7 @@ int main() {
             }*/
         }
         assert(top->second > 0 && top->second < BIG);
-        if(top->second == 104)printf("use:%lf %d\n",top->first,top->second);
+        if(top->second == 113)printf("use:%lf %d\n",top->first,top->second);
         auto roads = roadmap4[top->second];
         for (int i = 0; i < 34; ++i) {
             if(dflag) printf("i:%d\n",i);
@@ -237,7 +237,7 @@ int main() {
                         assert (val3t[id3][k] <= tval);
                         val3t[id3][k] = tval;
                         if(dflag) printf("improvefin k:%d\n",k);
-                        if((id3 == 104)){
+                        if((id3 == 113)){
                           //  printf("---id3:%d top:%lf %d k:%d i:%s newval:%lf sval:%lf\n",id3,top->first,top->second,k,mname[i],val3t[id3][k],val3[id3][k][i]);
                         }
                     }
@@ -248,7 +248,12 @@ int main() {
                         int id4 = roads3[j];
                         if(dflag) printf("id4:%d\n",id4);
                         assert(id4 >= 0 && id4 < BIG);
-                        if (id4 > 0) {
+                        if(id4 == top->second){
+                            for (int k = 0; k < 18; ++k) {
+//                                assert(val4[id4][k] > val3t[id3][k]);
+                            }
+                        }
+                        if (id4 > 0 && id4 != top->second) {
                             bool improve2 = false;
                             double oldval = 0;
                             for (int k = 0; k < 18; ++k) {
@@ -256,12 +261,15 @@ int main() {
                             }
 
                             for (int k = 0; k < 18; ++k) {
-                                if(id4 == 104){
-                                    printf("-++id3:%d id4:%d top:%lf %d k:%d i:%s j:%s newval:%lf val:%lf\n",id3,id4,top->first,top->second,k,mname[i],mname[j],val3t[id3][k],val4[id4][k]);
+                                if(id4 == 113){
+                                    printf("-++id3:%d id4:%d top:%lf %d k:%d i:%s j:%s newval:%lf val:%lf",id3,id4,top->first,top->second,k,mname[i],mname[j],val3t[id3][k],val4[id4][k]);
                                 }
                                 if(val4[id4][k] < val3t[id3][k]){
                                     val4[id4][k] = val3t[id3][k];
                                     improve2 = true;
+                                }
+                                if(id4 == 113) {
+                                    printf(" -- %lf\n", val4[id4][k]);
                                 }
                             }
                             if(improve2){
