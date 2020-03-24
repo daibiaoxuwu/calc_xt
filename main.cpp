@@ -83,7 +83,7 @@ int main() {
     //zero: empty. start from 1.
     cntmap4[hand_cnt] = 1;
     handmap4[1] = hand_cnt; //14: cur
-    xt_limit[1] = init_xt;
+    xt_limit[1] = init_xt + 1;
     int cnt4 = 2;
     int cnt3 = 1;
     for (int cur = 1; cur < cnt4; ++cur) {
@@ -108,7 +108,7 @@ int main() {
                                 if(cnt4 < BIG) {
                                     cntmap4[hand] = cnt4;
                                     int xt4 = calc_xt(hand);
-                                    xt_limit[cnt4] = min(xt_limit[cur], xt4); //todo xt3 or calcxt?
+                                    xt_limit[cnt4] = min(xt_limit[cur], xt4 + 1); //todo xt3 or calcxt?
                                     handmap4[cnt4] = hand;
                                     roadmap3[cnt3][j] = cnt4;
                                     roadmap4[cnt4][j] = cnt3;
@@ -171,6 +171,7 @@ int main() {
         if(minq > top->first){
             minq = top->first;
             printf("minq:%lf %d\n",minq,queue.size());
+            /*
             int k3 = 1;
             for (int k1 = 0; k1 < 34; ++k1) {
                 if(hand_cnt[k1] > 0){
@@ -181,9 +182,10 @@ int main() {
                     printf("\n");
                     ++k3;
                 }
-            }
+            }*/
         }
         assert(top->second > 0 && top->second < BIG);
+        if(top->second == 104)printf("use:%lf %d\n",top->first,top->second);
         auto roads = roadmap4[top->second];
         for (int i = 0; i < 34; ++i) {
             if(dflag) printf("i:%d\n",i);
@@ -191,18 +193,29 @@ int main() {
             assert(id3 >= 0 && id3 < BIG);
             if(id3 > 0){                        //top->second:14 --i--> id3:13
                 if(dflag) printf("id3:%d\n",id3);
-                int improve = 0;
+                int improve = -1;
+                if((id3 == 2 || id3 == 4) && i == 12){
+               //     printf("--id3:%d top:%lf %d\n",id3,top->first,top->second);
+                }
                 for (int k = 0; k < 18 - 1; ++k) {
                     double newval = val4[top->second][k + 1];
+                    if((id3 == 2 || id3 == 4)){
+                      //  printf("---id3:%d top:%lf %d k:%d i:%s val:%lf - %lf sval:%lf\n",id3,top->first,top->second,k,mname[i],val3t[id3][k],newval,val3[id3][k][i]);
+                    }
                     if(val3t[id3][k] < newval){
                         assert(val3[id3][k][i] <= newval);
                         if(val3[id3][k][i] < newval) {
-                            if(improve == 0) improve = k;
+                            if(improve == -1) {
+                                improve = k;
+                                if(id3 == 2 || id3 == 4){
+                             //       printf("id3:%d top:%lf %d k:%d i:%s val:%lf - %lf sval:%lf\n",id3,top->first,top->second,k,mname[i],val3t[id3][k],newval,val3[id3][k][i]);
+                                }
+                            }
                             val3[id3][k][i] = newval;
                         }
                     }
                 }
-                if(improve > 0) { //top->second:14 --i--> id3:13 --j-->id4:14
+                if(improve >= 0) { //top->second:14 --i--> id3:13 --j-->id4:14
                     //calculate val3t 0-18
                     for (int k = 0; k < 18; ++k) { //arrive@k total value (val3t[k])
                         if(dflag) printf("improve k:%d\n",k);
@@ -224,6 +237,9 @@ int main() {
                         assert (val3t[id3][k] <= tval);
                         val3t[id3][k] = tval;
                         if(dflag) printf("improvefin k:%d\n",k);
+                        if((id3 == 104)){
+                          //  printf("---id3:%d top:%lf %d k:%d i:%s newval:%lf sval:%lf\n",id3,top->first,top->second,k,mname[i],val3t[id3][k],val3[id3][k][i]);
+                        }
                     }
 
                     //send to all road4
@@ -240,6 +256,9 @@ int main() {
                             }
 
                             for (int k = 0; k < 18; ++k) {
+                                if(id4 == 104){
+                                    printf("-++id3:%d id4:%d top:%lf %d k:%d i:%s j:%s newval:%lf val:%lf\n",id3,id4,top->first,top->second,k,mname[i],mname[j],val3t[id3][k],val4[id4][k]);
+                                }
                                 if(val4[id4][k] < val3t[id3][k]){
                                     val4[id4][k] = val3t[id3][k];
                                     improve2 = true;
@@ -258,6 +277,7 @@ int main() {
                                 double val = 0;
                                 for (int k = 0; k < 18; ++k) {
                                     val += val4[id4][k] * round_prob[k];
+
                                 }
                                 assert(val < MaxVal);
                                 if(dflag) printf("fin\n");
