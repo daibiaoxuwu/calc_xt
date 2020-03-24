@@ -21,7 +21,7 @@ int dppath[MX][5][CHILD_NUM];
 int dpxt[MX];
 double fact[136];
 int tot;
-int BIG = 1000000;
+int BIG = 3000000;
 
 int calc_xt(const std::array<int,34> hand_cnts){
     int ha_cursor = MAX_HU_VALUE+1;
@@ -69,7 +69,6 @@ int main() {
     std::map<std::array<int, 34>, int> cntmap3; //todo: turn to set
     std::map<std::array<int, 34>, int> cntmap4;
     int* xt_limit = new int[BIG];
-    auto handmap3 = new std::array<int, 34>[BIG];
     auto roadmap3 = new std::array<int, 34>[BIG];
     auto handmap4 = new std::array<int, 34>[BIG];
     auto roadmap4 = new std::array<int, 34>[BIG];
@@ -86,20 +85,20 @@ int main() {
     xt_limit[1] = init_xt + 1;
     int cnt4 = 2;
     int cnt3 = 1;
-    for (int cur = 1; cur < cnt4; ++cur) {
-        if (cur % 10000 == 0)printf("cur:%d cnt4:%d cnt3:%d\n", cur, cnt4, cnt3);
-        auto hand = handmap4[cur];
+    int current = 1;
+    for (; current < cnt4 && cnt3 < BIG - 1000 && cnt4 < BIG - 1000; ++current) {
+        if (current % 10000 == 0)printf("curr:%d cnt4:%d cnt3:%d\n", current, cnt4, cnt3);
+        auto hand = handmap4[current];
         for (int i = 0; i < 34; ++i) {
             if (hand[i] > 0) {
                 hand[i]--;
 
                 if (cntmap3.count(hand) == 0) {
                     int xt3 = calc_xt(hand);
-                    if(cnt3 < BIG && xt3 <= xt_limit[cur] + 1) {
+                    if(cnt3 < BIG && xt3 <= xt_limit[current] + 1) {
                         cntmap3[hand] = cnt3;  //13: cnt3
-                        handmap3[cnt3] = hand;
-                        roadmap4[cur][i] = cnt3;
-                        roadmap3[cnt3][i] = cur;
+                        roadmap4[current][i] = cnt3;
+                        roadmap3[cnt3][i] = current;
 
                         for (int j = 0; j < 34; ++j) { //14: cnt4
                             if (j == i)continue;
@@ -108,7 +107,7 @@ int main() {
                                 if(cnt4 < BIG) {
                                     cntmap4[hand] = cnt4;
                                     int xt4 = calc_xt(hand);
-                                    xt_limit[cnt4] = min(xt_limit[cur], xt4 + 1); //todo xt3 or calcxt?
+                                    xt_limit[cnt4] = min(xt_limit[current], xt4 + 1); //todo xt3 or calcxt?
                                     handmap4[cnt4] = hand;
                                     roadmap3[cnt3][j] = cnt4;
                                     roadmap4[cnt4][j] = cnt3;
@@ -128,8 +127,8 @@ int main() {
                     }
                 } else {
                     int id3 = cntmap3[hand];
-                    roadmap3[id3][i] = cur;
-                    roadmap4[cur][i] = id3;
+                    roadmap3[id3][i] = current;
+                    roadmap4[current][i] = id3;
                 }
                 hand[i]++;
             }
@@ -138,17 +137,7 @@ int main() {
 
     printf("cnt3:%d cnt4:%d\n", cnt3, cnt4);
     auto val3 = new double[BIG][18][34];
-    val3[100][7][2] = 123;
     memset(val3, 0, 18 * 34 * BIG * sizeof(double));
-    for (int m = 0; m < BIG; ++m) {
-        for (int i = 0; i < 18; ++i) {
-            for (int j = 0; j < 34; ++j) {
-                if (val3[m][i][j] != 0) {
-                    printf("error %d %d %d\n", m, j, val3[m][j]);
-                }
-            }
-        }
-    }
     double (*val4)[18] = new double[BIG][18];
     memset(val4, 0, 18 * BIG * sizeof(double));
     double (*val3t)[18] = new double[BIG][18];
@@ -170,7 +159,7 @@ int main() {
         assert(minq >= top->first);
         if(minq > top->first){
             minq = top->first;
-//            printf("minq:%lf %d\n",minq,queue.size());
+            printf("minq:%lf qu:%d\n",minq,queue.size());
             /*
             int k3 = 1;
             for (int k1 = 0; k1 < 34; ++k1) {
@@ -185,7 +174,6 @@ int main() {
             }*/
         }
         assert(top->second > 0 && top->second < BIG);
-        if(top->second == 113)printf("use:%lf %d\n",top->first,top->second);
         auto roads = roadmap4[top->second];
         for (int i = 0; i < 34; ++i) {
             if(dflag) printf("i:%d\n",i);
@@ -237,9 +225,6 @@ int main() {
                         assert (val3t[id3][k] <= tval);
                         val3t[id3][k] = tval;
                         if(dflag) printf("improvefin k:%d\n",k);
-                        if((id3 == 113)){
-                          //  printf("---id3:%d top:%lf %d k:%d i:%s newval:%lf sval:%lf\n",id3,top->first,top->second,k,mname[i],val3t[id3][k],val3[id3][k][i]);
-                        }
                     }
 
                     //send to all road4
@@ -260,13 +245,9 @@ int main() {
                                 oldval += val4[id4][k] * round_prob[k];
                             }
 
-                            if(id4 == 113){
-                                printf("-++id3:%d id4:%d top:%lf %d i:%s j:%s\n",id3,id4,top->first,top->second,mname[i],mname[j]);
-                            }
                             for (int k = 0; k < 18; ++k) {
                                 if(val4[id4][k] < val3t[id3][k]){
                                     val4[id4][k] = val3t[id3][k];
-                                    if(id4 == 113 && !improve2) printf("113improve\n");
                                     improve2 = true;
                                 }
                             }
@@ -287,7 +268,10 @@ int main() {
                                 }
                                 assert(val < MaxVal);
                                 if(dflag) printf("fin\n");
-                                queue.emplace(std::make_pair(val, id4));
+
+                                if(id4 < current) {
+                                    queue.emplace(std::make_pair(val, id4));
+                                }
                             }
                         }
                     }
@@ -311,10 +295,6 @@ int main() {
     for (int k1 = 0; k1 < 34; ++k1) {
         if(hand_cnt[k1] > 0){
             printf("%s\n",mname[k1]);
-            for (int i = 0; i < 18; ++i) {
-                printf("%d ",handmap3[k3][i]);
-            }
-            printf("\n");
             for (int i = 0; i < 18; ++i) {
                 printf("%lf ", val3t[k3][i]);
             }
