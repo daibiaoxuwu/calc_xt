@@ -21,7 +21,7 @@ int dppath[MX][5][CHILD_NUM];
 int dpxt[MX];
 double fact[136];
 int tot;
-int BIG = 10000000;
+int BIG = 5000000;
 
 int calc_xt(const std::array<int,34> hand_cnts){
     int ha_cursor = MAX_HU_VALUE+1;
@@ -84,7 +84,7 @@ int main() {
     int cnt3 = 1;
     int current = 1;
     for (; current < cnt4 && cnt3 < BIG - 1000 && cnt4 < BIG - 1000 && nodes0.size() < 250 ; ++current) {
-//        if (current % 10000 == 0)printf("curr:%d cnt4:%d cnt3:%d\n", current, cnt4, cnt3, nodes0.size());
+        if (current % 1000 == 0)printf("curr:%d cnt4:%d cnt3:%d zero:%d %d\n", current, cnt4, cnt3, nodes0.size(),xt_limit[current]);
         auto hand = handmap4[current];
         for (int i = 0; i < 34; ++i) {
             if (hand[i] > 0) {
@@ -92,7 +92,8 @@ int main() {
 
                 if (cntmap3.count(hand) == 0) {
                     int xt3 = calc_xt(hand);
-                    if(cnt3 < BIG && xt3 <= xt_limit[current] + 1) {
+                    if(cnt3 < BIG && (xt3 < xt_limit[current] || (xt3 == xt_limit[current] && current < 100000) || current == 1)) {
+                        if(current >= 100000) assert(xt3 < xt_limit[current]);
                         cntmap3[hand] = cnt3;  //13: cnt3
                         roadmap4[current][i] = cnt3;
                         roadmap3[cnt3][i] = current;
@@ -104,7 +105,7 @@ int main() {
                                 if(cnt4 < BIG) {
                                     cntmap4[hand] = cnt4;
                                     int xt4 = calc_xt(hand);
-                                    xt_limit[cnt4] = min(xt_limit[current], xt4 + 1); //todo xt3 or calcxt?
+                                    xt_limit[cnt4] = (current == 1 ? init_xt + 1 : min(xt_limit[current], xt4)); //todo xt3 or calcxt?
                                     handmap4[cnt4] = hand;
                                     roadmap3[cnt3][j] = cnt4;
                                     roadmap4[cnt4][j] = cnt3;
