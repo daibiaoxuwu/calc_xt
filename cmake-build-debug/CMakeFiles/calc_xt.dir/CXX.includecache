@@ -1,0 +1,28 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+D:/prog10/Desktop/mahjong_old/calc_xt/main.cpp
+cstdio
+-
+cstring
+-
+map
+-
+ctime
+-
+vector
+-
+cassert
+-
+set
+-
+queue
+-
+cmath
+-
+

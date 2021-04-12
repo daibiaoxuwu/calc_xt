@@ -71,32 +71,37 @@ int main() {
     std::map<std::array<int, 34>, int> cntmap3; //todo: turn to set
     std::map<std::array<int, 34>, int> cntmap4;
     int* xt_limit = new int[BIG];
-    auto roadmap3 = new std::array<int, 34>[BIG];
-    auto handmap4 = new std::array<int, 34>[BIG];
-    auto roadmap4 = new std::array<int, 34>[BIG];
+    auto roadmap3 = new std::array<int, 34>*[BIG];
+    auto handmap4 = new std::array<int, 34>*[BIG];
+    auto roadmap4 = new std::array<int, 34>*[BIG];
+    for (int m = 0; m < BIG; ++m) {
+        roadmap3[m] = new std::array<int, 34>();
+        roadmap4[m] = new std::array<int, 34>();
+        handmap4[m] = new std::array<int, 34>();
+    }
     std::set<int> nodes0;
 
     //zero: empty. start from 1.
     cntmap4[hand_cnt] = 1;
-    handmap4[1] = hand_cnt; //14: cur
-    xt_limit[1] = init_xt;
+    *handmap4[1] = hand_cnt; //14: cur
+    xt_limit[1] = init_xt + 1;
     int cnt4 = 2;
     int cnt3 = 1;
     int current = 1;
     for (; current < cnt4 && cnt3 < BIG - 1000 && cnt4 < BIG - 1000 && nodes0.size() < 250 ; ++current) {
-        if (current % 1000 == 0)printf("curr:%d cnt4:%d cnt3:%d zero:%d %d\n", current, cnt4, cnt3, nodes0.size(),xt_limit[current]);
-        auto hand = handmap4[current];
+        if (current % 1000 == 1)printf("curr:%d cnt4:%d cnt3:%d zero:%d %d\n", current, cnt4, cnt3, nodes0.size(),xt_limit[current]);
+        auto hand = *handmap4[current];
         for (int i = 0; i < 34; ++i) {
             if (hand[i] > 0) {
                 hand[i]--;
 
                 if (cntmap3.count(hand) == 0) {
                     int xt3 = calc_xt(hand);
-                    if(cnt3 < BIG && (xt3 < xt_limit[current] || (xt3 == xt_limit[current] && current < 100000) || current == 1)) {
+                    if(cnt3 < BIG && (xt3 <= xt_limit[current] || (xt3 == xt_limit[current] && current < 100000) || current == 1)) {
                         if(current >= 100000) assert(xt3 < xt_limit[current]);
                         cntmap3[hand] = cnt3;  //13: cnt3
-                        roadmap4[current][i] = cnt3;
-                        roadmap3[cnt3][i] = current;
+                        (*roadmap4[current])[i] = cnt3;
+                        (*roadmap3[cnt3])[i] = current;
 
                         for (int j = 0; j < 34; ++j) { //14: cnt4
                             if (j == i)continue;
@@ -106,9 +111,9 @@ int main() {
                                     cntmap4[hand] = cnt4;
                                     int xt4 = calc_xt(hand);
                                     xt_limit[cnt4] = (current == 1 ? init_xt + 1 : min(xt_limit[current], xt4)); //todo xt3 or calcxt?
-                                    handmap4[cnt4] = hand;
-                                    roadmap3[cnt3][j] = cnt4;
-                                    roadmap4[cnt4][j] = cnt3;
+                                    *handmap4[cnt4] = hand;
+                                    (*roadmap3[cnt3])[j] = cnt4;
+                                    (*roadmap4[cnt4])[j] = cnt3;
                                     if (xt4 == 0) {
                                         nodes0.insert(cnt4);
                                     }
@@ -116,8 +121,8 @@ int main() {
                                 }
                             } else {
                                 int id4 = cntmap4[hand];
-                                roadmap4[id4][j] = cnt3;
-                                roadmap3[cnt3][j] = id4;
+                                (*roadmap4[id4])[j] = cnt3;
+                                (*roadmap3[cnt3])[j] = id4;
                             }
                             hand[j]--;
                         }
@@ -125,8 +130,8 @@ int main() {
                     }
                 } else {
                     int id3 = cntmap3[hand];
-                    roadmap3[id3][i] = current;
-                    roadmap4[current][i] = id3;
+                    (*roadmap3[id3])[i] = current;
+                    (*roadmap4[current])[i] = id3;
                 }
                 hand[i]++;
             }
@@ -192,7 +197,7 @@ int main() {
             }
         }
         assert(top->second > 0 && top->second < BIG);
-        auto roads = roadmap4[top->second];
+        auto roads = *roadmap4[top->second];
         for (int i = 0; i < 34; ++i) {
             if(dflag) printf("i:%d\n",i);
             int id3 = roads[i];
@@ -247,7 +252,7 @@ int main() {
                     }
 
                     //send to all road4
-                    auto roads3 = roadmap3[id3];
+                    auto roads3 = *roadmap3[id3];
                     for (int j = 0; j < 34; ++j) {
                         int id4 = roads3[j];
                         if(dflag) printf("id4:%d\n",id4);

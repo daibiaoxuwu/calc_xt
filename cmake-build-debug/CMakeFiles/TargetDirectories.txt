@@ -1,0 +1,3 @@
+D:/prog10/Desktop/mahjong_old/calc_xt/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+D:/prog10/Desktop/mahjong_old/calc_xt/cmake-build-debug/CMakeFiles/calc_xt.dir
+D:/prog10/Desktop/mahjong_old/calc_xt/cmake-build-debug/CMakeFiles/edit_cache.dir
